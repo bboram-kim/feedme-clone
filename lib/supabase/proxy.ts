@@ -38,8 +38,8 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
-  // 보호 경로는 /settings뿐입니다. 서버에서 검증된 claims로만 판단합니다.
-  if (!user && request.nextUrl.pathname.startsWith('/settings')) {
+  // 로그인 화면(/auth)을 뺀 모든 경로는 로그인이 필요합니다. 서버에서 검증된 claims로만 판단합니다.
+  if (!user && !request.nextUrl.pathname.startsWith('/auth')) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     url.search = ''
