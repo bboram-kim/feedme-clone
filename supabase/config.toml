@@ -1,0 +1,5 @@
+project_id = "feedme-clone"
+
+# Only the properties declared here are pushed to the hosted project.
+[auth.email]
+enable_confirmations = false
