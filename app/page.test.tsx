@@ -8,7 +8,23 @@ vi.mock("next-themes", () => ({
   useTheme: () => ({ resolvedTheme: "light", setTheme: vi.fn(), theme: "light" }),
 }));
 
-afterEach(() => vi.unstubAllGlobals());
+const supabaseMock = vi.hoisted(() => ({
+  claims: null as { sub: string } | null,
+  upsert: vi.fn(async (_row: unknown, _opts: unknown) => ({ error: null as { message: string } | null })),
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: { getClaims: async () => ({ data: { claims: supabaseMock.claims } }) },
+    from: () => ({ upsert: supabaseMock.upsert }),
+  }),
+}));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  supabaseMock.claims = null;
+  supabaseMock.upsert.mockClear();
+});
 
 const page = {
   title: "Use the saw, fear the saw",
@@ -83,4 +99,56 @@ test.each([
   expect(await screen.findByText(title)).toBeInTheDocument();
   expect(screen.getByLabelText("웹 페이지 URL")).toHaveValue("https://example.com");
   await waitFor(() => expect(screen.getByRole("button", { name: "변환" })).toBeEnabled());
+});
+
+async function convertArticle(user: ReturnType<typeof userEvent.setup>) {
+  mockApi({ ok: true, body: page });
+  render(<Home />);
+  await user.type(screen.getByLabelText("웹 페이지 URL"), "https://stephango.com/saw");
+  await user.click(screen.getByRole("button", { name: "변환" }));
+  await screen.findByText("Use the saw, fear the saw");
+}
+
+test("로그인한 사용자가 저장하면 저장됨 상태로 바뀌고 스냅샷이 저장된다", async () => {
+  const user = userEvent.setup();
+  supabaseMock.claims = { sub: "user-1" };
+  await convertArticle(user);
+
+  await user.click(await screen.findByRole("button", { name: "저장" }));
+
+  expect(await screen.findByRole("button", { name: "저장됨" })).toBeDisabled();
+  expect(supabaseMock.upsert).toHaveBeenCalledTimes(1);
+  expect(supabaseMock.upsert.mock.calls[0][0]).toMatchObject({
+    user_id: "user-1",
+    url: "https://stephango.com/saw",
+    title: "Use the saw, fear the saw",
+    markdown: page.markdown,
+  });
+});
+
+test("저장에 실패하면 저장됨으로 바뀌지 않고 다시 저장할 수 있다", async () => {
+  const user = userEvent.setup();
+  supabaseMock.claims = { sub: "user-1" };
+  supabaseMock.upsert.mockResolvedValueOnce({ error: { message: "boom" } });
+  await convertArticle(user);
+
+  await user.click(await screen.findByRole("button", { name: "저장" }));
+
+  await waitFor(() => expect(screen.getByRole("button", { name: "저장" })).toBeEnabled());
+  expect(screen.queryByRole("button", { name: "저장됨" })).not.toBeInTheDocument();
+});
+
+test("비로그인 사용자에게는 로그인하고 저장 링크가 보이고, 변환 기능은 그대로 쓴다", async () => {
+  const user = userEvent.setup();
+  await convertArticle(user);
+
+  const link = await screen.findByRole("link", { name: "로그인하고 저장" });
+  expect(link).toHaveAttribute("href", "/auth/login?next=/");
+  expect(screen.getByRole("button", { name: "복사하기" })).toBeInTheDocument();
+  expect(supabaseMock.upsert).not.toHaveBeenCalled();
+});
+
+test("홈 상단에서 저장한 글로 이동할 수 있다", () => {
+  render(<Home />);
+  expect(screen.getByRole("link", { name: "저장한 글" })).toHaveAttribute("href", "/saved");
 });

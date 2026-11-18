@@ -38,12 +38,14 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims()
   const user = data?.claims
 
-  // 보호 경로는 /settings뿐입니다. 서버에서 검증된 claims로만 판단합니다.
-  if (!user && request.nextUrl.pathname.startsWith('/settings')) {
+  // 보호 경로는 /settings와 /saved입니다. 서버에서 검증된 claims로만 판단합니다.
+  const { pathname } = request.nextUrl
+  const isProtected = pathname.startsWith('/settings') || pathname.startsWith('/saved')
+  if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     url.search = ''
-    url.searchParams.set('next', request.nextUrl.pathname)
+    url.searchParams.set('next', pathname)
     return NextResponse.redirect(url)
   }
 
