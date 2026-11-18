@@ -22,7 +22,7 @@ export function ExportMenu({
   onOpenChat: (provider: ChatProvider) => void;
 }) {
   return (
-    <ButtonGroup className="self-end">
+    <ButtonGroup>
       <Button variant="outline" onClick={onCopy}>
         <CopyIcon data-icon="inline-start" />
         복사하기

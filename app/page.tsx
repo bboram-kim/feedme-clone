@@ -10,6 +10,9 @@ export default function Home() {
         <div className="flex items-center justify-between gap-3">
           <span className="text-lg font-bold tracking-tight">Feedme</span>
           <div className="flex items-center gap-3">
+            <Link href="/saved" className="text-sm text-muted-foreground hover:text-foreground">
+              저장한 글
+            </Link>
             <Link href="/settings" className="text-sm text-muted-foreground hover:text-foreground">
               설정
             </Link>

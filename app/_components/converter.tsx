@@ -2,32 +2,27 @@
 
 import { Loader2Icon, TriangleAlertIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  buildMessage,
-  markdownFilename,
-  planChatHandoff,
-  type ChatProvider,
-} from "@/lib/llm-handoff";
 import type { ExtractedPage } from "@/lib/page-extraction";
 
 import { describeError, type ConvertError } from "./convert-errors";
 import { ExportMenu } from "./export-menu";
 import { MarkdownView } from "./markdown-view";
-import { PromptPicker, resolvePrompt, type PromptChoice } from "./prompt-picker";
-
-const CHAT_NAMES: Record<ChatProvider, string> = { chatgpt: "ChatGPT", claude: "Claude" };
+import { PromptPicker, type PromptChoice } from "./prompt-picker";
+import { SaveButton } from "./save-button";
+import { useHandoff } from "./use-handoff";
 
 export function Converter() {
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [page, setPage] = useState<ExtractedPage | null>(null);
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [resultId, setResultId] = useState(0);
   const [error, setError] = useState<ConvertError | null>(null);
   const [choice, setChoice] = useState<PromptChoice>(null);
   const [custom, setCustom] = useState("");
@@ -64,6 +59,8 @@ export function Converter() {
         return;
       }
       setPage(data as ExtractedPage);
+      setSourceUrl(value);
+      setResultId((n) => n + 1);
       setStatus("done");
     } catch {
       if (controller.signal.aborted) return;
@@ -82,49 +79,7 @@ export function Converter() {
     setCustom("");
   }
 
-  async function copyText(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      toast.error("클립보드에 복사하지 못했어요. 브라우저 권한을 확인해 주세요.");
-      return false;
-    }
-  }
-
-  async function copy() {
-    if (page && (await copyText(page.markdown))) toast.success("Markdown 본문을 복사했어요");
-  }
-
-  function download() {
-    if (!page) return;
-    const blob = new Blob([page.markdown], { type: "text/markdown;charset=utf-8" });
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = href;
-    a.download = markdownFilename(page.title, page.site);
-    a.click();
-    URL.revokeObjectURL(href);
-    toast.success(`${a.download} 파일을 저장했어요`);
-  }
-
-  async function openChat(provider: ChatProvider) {
-    if (!page) return;
-    const prompt = resolvePrompt(choice, custom);
-    const plan = planChatHandoff(provider, buildMessage(prompt, page.markdown));
-    const name = CHAT_NAMES[provider];
-    if (plan.kind === "clipboard") {
-      if (!(await copyText(plan.text))) return;
-      window.open(plan.url, "_blank", "noopener,noreferrer");
-      toast.info(
-        `본문이 길어 ${prompt ? "프롬프트와 함께 " : ""}클립보드에 복사했어요. ${name} 새 채팅에 붙여넣어 주세요.`,
-        { duration: 8000 },
-      );
-      return;
-    }
-    window.open(plan.url, "_blank", "noopener,noreferrer");
-    toast.success(`${prompt ? `“${prompt}” 프롬프트와 함께 ` : ""}${name} 새 채팅을 열었어요`);
-  }
+  const { copy, download, openChat } = useHandoff(page, choice, custom);
 
   const errorText = error ? describeError(error) : null;
 
@@ -199,7 +154,10 @@ export function Converter() {
 
       {status === "done" && page && (
         <div className="flex flex-col gap-2.5">
-          <ExportMenu onCopy={copy} onDownload={download} onOpenChat={openChat} />
+          <div className="flex items-center justify-end gap-2">
+            <SaveButton key={resultId} url={sourceUrl} page={page} />
+            <ExportMenu onCopy={copy} onDownload={download} onOpenChat={openChat} />
+          </div>
           <Card>
             <CardHeader className="gap-1 border-b">
               <CardTitle className="text-xl leading-snug text-balance">
