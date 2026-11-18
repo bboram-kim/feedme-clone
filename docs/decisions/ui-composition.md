@@ -11,6 +11,7 @@
 - Tailwind class는 flow, grid, gap, alignment와 responsive layout을 구성하는 데 사용합니다. 고정 좌표와 임의의 pixel 값보다 정해진 spacing scale과 자연스러운 document flow를 우선합니다.
 - 각 화면은 주된 목적과 가장 중요한 action을 분명히 드러냅니다. 입력, 주요 결과, 보조 정보의 시각적 위계와 사용 순서가 heading, spacing, grouping과 action priority에 반영되어야 합니다.
 - loading, empty, error, success, disabled 상태를 정상 화면과 함께 설계합니다. 상태가 달라도 같은 component와 layout 문법을 유지합니다.
+- 앱 UI 문구는 한국어로 쓰고, 글꼴은 나눔고딕(`Nanum Gothic`, 굵기 400·700·800)을 씁니다.
 - 좁은 화면에서는 정보의 중요도와 사용 순서를 보존한 채 column을 쌓습니다. 단순 축소로 내용이나 action을 숨기지 않습니다.
 
 ## Boundaries
